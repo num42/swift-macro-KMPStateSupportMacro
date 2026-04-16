@@ -8,11 +8,11 @@ on:
       - main
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode_26.0.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_26.1.app/Contents/Developer
 
 jobs:
   test:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
@@ -23,7 +23,7 @@ jobs:
       - name: Run Tests
         run: swift test -Xswiftc -warnings-as-errors --enable-experimental-prebuilts
   format:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
