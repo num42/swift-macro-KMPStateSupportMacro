@@ -4,13 +4,13 @@ public import SwiftSyntaxMacros
 
 public struct KMPStateSupportMacro: DeclarationMacro {
   enum Error: Swift.Error, CustomStringConvertible {
-    case missingState
+    case noProperties
     case invalidProperty(String)
 
     var description: String {
       switch self {
-      case .missingState:
-        "#KMPStateSupport requires a state type name as its first argument"
+      case .noProperties:
+        "#KMPStateSupport requires at least one property"
       case .invalidProperty(let str):
         "Invalid property format '\(str)'. Expected (\\Type.property, Type.self)."
       }
@@ -21,6 +21,7 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     let name: String
     let type: String
     let isOptional: Bool
+    let rootType: String
 
     var baseType: String {
       isOptional ? String(type.dropLast()) : type
@@ -32,32 +33,16 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     in context: some MacroExpansionContext
   ) throws -> [DeclSyntax] {
     let arguments = Array(node.arguments)
+    let properties = try parseProperties(from: arguments)
 
-    guard
-      let firstArg = arguments.first,
-      let memberAccess = firstArg.expression.as(MemberAccessExprSyntax.self),
-      memberAccess.declName.baseName.text == "self",
-      let base = memberAccess.base
-    else {
-      throw Error.missingState
+    guard let typeName = properties.first?.rootType else {
+      throw Error.noProperties
     }
-
-    let typeName = base.trimmedDescription
-    let propertyArgs = arguments.dropFirst()
-    let properties = try parseProperties(from: propertyArgs)
 
     let withFunc = generateWithFunction(properties: properties)
     let applyFunc = generateApplyFunction(typeName: typeName, properties: properties)
 
-    let extensionStr = """
-      extension \(typeName) {
-        \(withFunc)
-
-        \(applyFunc)
-      }
-      """
-
-    return [DeclSyntax(stringLiteral: extensionStr)]
+    return [DeclSyntax(stringLiteral: withFunc), DeclSyntax(stringLiteral: applyFunc)]
   }
 
   private static func parseProperties(
@@ -82,6 +67,7 @@ public struct KMPStateSupportMacro: DeclarationMacro {
       }
 
       let name = property.declName.baseName.text
+      let rootType = keyPath.root?.trimmedDescription ?? ""
 
       guard
         let memberAccess = elements[1].expression.as(MemberAccessExprSyntax.self),
@@ -94,7 +80,7 @@ public struct KMPStateSupportMacro: DeclarationMacro {
       let type = base.trimmedDescription
       let isOptional = type.hasSuffix("?")
 
-      return Property(name: name, type: type, isOptional: isOptional)
+      return Property(name: name, type: type, isOptional: isOptional, rootType: rootType)
     }
   }
 
