@@ -3,15 +3,15 @@ internal import SwiftSyntaxMacros
 internal import SwiftSyntaxMacrosTestSupport
 internal import Testing
 
-#if canImport(KMPGenerateKMPStateSupportMacroMacros)
-  import KMPGenerateKMPStateSupportMacroMacros
+#if canImport(KMPStateSupportMacroMacros)
+  import KMPStateSupportMacroMacros
 
   let testMacros: [String: Macro.Type] = [
-    "GenerateKMPStateSupport": GenerateKMPStateSupportMacro.self
+    "KMPStateSupport": KMPStateSupportMacro.self
   ]
 
   @Suite
-  struct GenerateKMPStateSupportMacroTests {
+  struct KMPStateSupportMacroTests {
     @Test func generateApply() {
       MacroTester.testMacro(macros: testMacros)
     }

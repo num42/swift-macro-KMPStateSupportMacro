@@ -2,8 +2,8 @@ internal import SwiftCompilerPlugin
 internal import SwiftSyntaxMacros
 
 @main
-struct KMPGenerateKMPStateSupportMacroPlugin: CompilerPlugin {
+struct KMPStateSupportMacroPlugin: CompilerPlugin {
   let providingMacros: [Macro.Type] = [
-    GenerateKMPStateSupportMacro.self
+    KMPStateSupportMacro.self
   ]
 }

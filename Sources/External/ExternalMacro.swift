@@ -1,6 +1,6 @@
 @freestanding(declaration, names: arbitrary)
-public macro GenerateKMPStateSupport(_ state: Any.Type, _ properties: (AnyKeyPath, Any.Type)...) =
+public macro KMPStateSupport(_ state: Any.Type, _ properties: (AnyKeyPath, Any.Type)...) =
   #externalMacro(
-    module: "KMPGenerateKMPStateSupportMacroMacros",
-    type: "GenerateKMPStateSupportMacro"
+    module: "KMPStateSupportMacroMacros",
+    type: "KMPStateSupportMacro"
   )

@@ -1,4 +1,4 @@
-#GenerateKMPStateSupport(
+#KMPStateSupport(
   MyState.self,
   (\MyState.name, String.self),
   (\MyState.count, Int.self)
