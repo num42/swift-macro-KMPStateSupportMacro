@@ -1,6 +1,6 @@
 extension MyState {
-  #KMPStateSupport(
-    (\MyState.name, String.self),
-    (\MyState.count, Int.self)
+  #KMPStateSupport(MyState.self,
+    ("name", String.self),
+    ("count", Int.self)
   )
 }

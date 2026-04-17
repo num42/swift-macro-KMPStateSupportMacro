@@ -5,14 +5,17 @@ public import SwiftSyntaxMacros
 public struct KMPStateSupportMacro: DeclarationMacro {
   enum Error: Swift.Error, CustomStringConvertible {
     case noProperties
+    case invalidType(String)
     case invalidProperty(String)
 
     var description: String {
       switch self {
       case .noProperties:
-        "#KMPStateSupport requires at least one property"
+        "#KMPStateSupport requires a type and at least one property"
+      case .invalidType(let str):
+        "Invalid type format '\(str)'. Expected Type.self."
       case .invalidProperty(let str):
-        "Invalid property format '\(str)'. Expected (\\Type.property, Type.self)."
+        "Invalid property format '\(str)'. Expected (\"propertyName\", Type.self)."
       }
     }
   }
@@ -33,11 +36,29 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     in context: some MacroExpansionContext
   ) throws -> [DeclSyntax] {
     let arguments = Array(node.arguments)
-    let properties = try parseProperties(from: arguments)
 
-    guard let typeName = properties.first?.rootType else {
+    guard !arguments.isEmpty else {
       throw Error.noProperties
     }
+
+    // First argument is the type: MyState.self
+    guard
+      let memberAccess = arguments[0].expression.as(MemberAccessExprSyntax.self),
+      memberAccess.declName.baseName.text == "self",
+      let base = memberAccess.base
+    else {
+      throw Error.invalidType(arguments[0].expression.trimmedDescription)
+    }
+
+    let typeName = base.trimmedDescription
+
+    // Remaining arguments are property tuples: ("name", String.self)
+    let propertyArgs = arguments.dropFirst()
+    guard !propertyArgs.isEmpty else {
+      throw Error.noProperties
+    }
+
+    let properties = try parseProperties(from: propertyArgs, rootType: typeName)
 
     let withFunc = generateWithFunction(properties: properties)
     let applyFunc = generateApplyFunction(typeName: typeName, properties: properties)
@@ -46,7 +67,8 @@ public struct KMPStateSupportMacro: DeclarationMacro {
   }
 
   private static func parseProperties(
-    from arguments: some Sequence<LabeledExprSyntax>
+    from arguments: some Sequence<LabeledExprSyntax>,
+    rootType: String
   ) throws -> [Property] {
     try arguments.map { arg in
       guard
@@ -58,17 +80,17 @@ public struct KMPStateSupportMacro: DeclarationMacro {
 
       let elements = Array(tuple.elements)
 
+      // First element: string literal for property name
       guard
-        let keyPath = elements[0].expression.as(KeyPathExprSyntax.self),
-        let lastComponent = keyPath.components.last,
-        let property = lastComponent.component.as(KeyPathPropertyComponentSyntax.self)
+        let stringLiteral = elements[0].expression.as(StringLiteralExprSyntax.self),
+        let segment = stringLiteral.segments.first?.as(StringSegmentSyntax.self)
       else {
         throw Error.invalidProperty(arg.expression.trimmedDescription)
       }
 
-      let name = property.declName.baseName.text
-      let rootType = keyPath.root?.trimmedDescription ?? ""
+      let name = segment.content.text
 
+      // Second element: Type.self for property type
       guard
         let memberAccess = elements[1].expression.as(MemberAccessExprSyntax.self),
         memberAccess.declName.baseName.text == "self",
