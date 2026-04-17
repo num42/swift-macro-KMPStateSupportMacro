@@ -19,5 +19,9 @@ internal import Testing
     @Test func generateApplyWithClosure() {
       MacroTester.testMacro(macros: testMacros)
     }
+
+    @Test func generateApplyWithKotlinBridgedType() {
+      MacroTester.testMacro(macros: testMacros)
+    }
   }
 #endif

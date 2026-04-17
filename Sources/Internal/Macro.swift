@@ -29,6 +29,29 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     var baseType: String {
       isOptional ? String(type.dropLast()) : type
     }
+
+    private static let kotlinToSwiftTypeMap: [String: String] = [
+      "KotlinDouble": "Double",
+      "KotlinFloat": "Float",
+      "KotlinInt": "Int32",
+      "KotlinLong": "Int64",
+      "KotlinBoolean": "Bool",
+      "KotlinShort": "Int16",
+      "KotlinByte": "Int8",
+      "KotlinUByte": "UInt8",
+      "KotlinUShort": "UInt16",
+      "KotlinUInt": "UInt32",
+      "KotlinULong": "UInt64",
+    ]
+
+    /// The Swift equivalent type for Kotlin bridged types (e.g. KotlinDouble → Double).
+    var swiftType: String? {
+      Self.kotlinToSwiftTypeMap[baseType]
+    }
+
+    var isKotlinBridgedType: Bool {
+      swiftType != nil
+    }
   }
 
   public static func expansion(
@@ -108,26 +131,54 @@ public struct KMPStateSupportMacro: DeclarationMacro {
 
   private static func generateWithFunction(properties: [Property]) -> String {
     let params = properties.map { prop in
-      if prop.isOptional {
-        "\(prop.name): (() -> \(prop.type))? = nil"
+      let paramType = prop.swiftType ?? prop.baseType
+      return if prop.isOptional {
+        "\(prop.name): (() -> \(paramType)?)? = nil"
       } else {
-        "\(prop.name): \(prop.type)? = nil"
+        "\(prop.name): \(paramType)? = nil"
       }
     }.joined(separator: ", ")
+
+    let localVars = properties.compactMap { prop -> String? in
+      guard prop.isKotlinBridgedType, prop.isOptional else { return nil }
+      let cap = capitalizeFirst(prop.name)
+      return "let new\(cap) = if \(prop.name) != nil { \(prop.name)?().flatMap(\(prop.baseType).init) } else { self.\(prop.name) }"
+    }
 
     let bodyArgs = properties.map { prop in
-      if prop.isOptional {
-        "\(prop.name): \(prop.name) != nil ? \(prop.name)!() : self.\(prop.name)"
+      if prop.isKotlinBridgedType {
+        if prop.isOptional {
+          let cap = capitalizeFirst(prop.name)
+          return "\(prop.name): new\(cap)"
+        } else {
+          return "\(prop.name): \(prop.name).map(\(prop.type).init) ?? self.\(prop.name)"
+        }
+      } else if prop.isOptional {
+        return "\(prop.name): \(prop.name) != nil ? \(prop.name)!() : self.\(prop.name)"
       } else {
-        "\(prop.name): \(prop.name) ?? self.\(prop.name)"
+        return "\(prop.name): \(prop.name) ?? self.\(prop.name)"
       }
     }.joined(separator: ", ")
 
-    return """
-      func with(\(params)) -> Self {
-        Self(\(bodyArgs))
-      }
-      """
+    if localVars.isEmpty {
+      return """
+        func with(\(params)) -> Self {
+          Self(\(bodyArgs))
+        }
+        """
+    } else {
+      let localVarsStr = localVars.joined(separator: "\n  ")
+      return """
+        func with(\(params)) -> Self {
+          \(localVarsStr)
+          return Self(\(bodyArgs))
+        }
+        """
+    }
+  }
+
+  private static func capitalizeFirst(_ s: String) -> String {
+    s.prefix(1).uppercased() + s.dropFirst()
   }
 
   private static func generateApplyFunction(typeName: String, properties: [Property]) -> String {
@@ -135,10 +186,11 @@ public struct KMPStateSupportMacro: DeclarationMacro {
 
     for prop in properties {
       caseLines.append("    case \\KTStateWrapper<State>.kt.\(prop.name):")
+      let castType = prop.swiftType ?? prop.baseType
       if prop.isOptional {
-        caseLines.append("      with(\(prop.name): { value as? \(prop.baseType) })")
+        caseLines.append("      with(\(prop.name): { value as? \(castType) })")
       } else {
-        caseLines.append("      with(\(prop.name): value as? \(prop.type))")
+        caseLines.append("      with(\(prop.name): value as? \(castType))")
       }
     }
 
