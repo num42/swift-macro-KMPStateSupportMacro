@@ -1,8 +1,8 @@
 extension MyState {
-  public func withChanges(name: String? = nil, count: Int? = nil) -> Self {
+  func withChanges(name: String? = nil, count: Int? = nil) -> Self {
     Self(name: name ?? self.name, count: count ?? self.count)
   }
-  public func apply(path: AnyKeyPath, value: Any) -> Self {
+  func apply(path: AnyKeyPath, value: Any) -> Self {
     typealias State = MyState
 
     return switch path {

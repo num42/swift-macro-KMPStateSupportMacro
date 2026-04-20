@@ -1,0 +1,24 @@
+extension MyState {
+  public func withChanges(name: String? = nil, value: (() -> Double?)? = nil) -> Self {
+    let newValue = if value != nil {
+        value?().flatMap(KotlinDouble.init)
+    } else {
+        self.value
+    }
+    return Self(name: name ?? self.name, value: newValue)
+  }
+  public func apply(path: AnyKeyPath, value: Any) -> Self {
+    typealias State = MyState
+
+    return switch path {
+      case \KTStateWrapper<State>.kt.name:
+        withChanges(name: value as? String)
+      case \KTStateWrapper<State>.kt.value:
+        withChanges(value: {
+                value as? Double
+            })
+    default:
+      fatalError("Unknown key path \(path)")
+    }
+  }
+}

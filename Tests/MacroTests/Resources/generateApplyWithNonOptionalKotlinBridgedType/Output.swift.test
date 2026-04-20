@@ -1,0 +1,26 @@
+extension MyState {
+  public func withChanges(name: String? = nil, amount: Double? = nil, ratio: (() -> Double?)? = nil) -> Self {
+    let newRatio = if ratio != nil {
+        ratio?().flatMap(KotlinDouble.init)
+    } else {
+        self.ratio
+    }
+    return Self(name: name ?? self.name, amount: amount ?? self.amount, ratio: newRatio)
+  }
+  public func apply(path: AnyKeyPath, value: Any) -> Self {
+    typealias State = MyState
+
+    return switch path {
+      case \KTStateWrapper<State>.kt.name:
+        withChanges(name: value as? String)
+      case \KTStateWrapper<State>.kt.amount:
+        withChanges(amount: value as? Double)
+      case \KTStateWrapper<State>.kt.ratio:
+        withChanges(ratio: {
+                value as? Double
+            })
+    default:
+      fatalError("Unknown key path \(path)")
+    }
+  }
+}

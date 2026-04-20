@@ -1,15 +1,15 @@
 extension MyState {
-  func with(name: String? = nil, trigger: (() -> Trigger?)? = nil) -> Self {
+  public func withChanges(name: String? = nil, trigger: (() -> Trigger?)? = nil) -> Self {
     Self(name: name ?? self.name, trigger: trigger != nil ? trigger!() : self.trigger)
   }
-  func apply(path: AnyKeyPath, value: Any) -> Self {
+  public func apply(path: AnyKeyPath, value: Any) -> Self {
     typealias State = MyState
 
     return switch path {
       case \KTStateWrapper<State>.kt.name:
-        with(name: value as? String)
+        withChanges(name: value as? String)
       case \KTStateWrapper<State>.kt.trigger:
-        with(trigger: {
+        withChanges(trigger: {
                 value as? Trigger
             })
     default:

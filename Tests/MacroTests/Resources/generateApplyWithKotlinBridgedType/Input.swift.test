@@ -1,0 +1,6 @@
+extension MyState {
+  #KMPStateSupport(MyState.self,
+    ("name", String.self),
+    ("value", KotlinDouble?.self)
+  )
+}

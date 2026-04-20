@@ -29,6 +29,29 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     var baseType: String {
       isOptional ? String(type.dropLast()) : type
     }
+
+    private static let kotlinToSwiftTypeMap: [String: String] = [
+      "KotlinDouble": "Double",
+      "KotlinFloat": "Float",
+      "KotlinInt": "Int32",
+      "KotlinLong": "Int64",
+      "KotlinBoolean": "Bool",
+      "KotlinShort": "Int16",
+      "KotlinByte": "Int8",
+      "KotlinUByte": "UInt8",
+      "KotlinUShort": "UInt16",
+      "KotlinUInt": "UInt32",
+      "KotlinULong": "UInt64",
+    ]
+
+    /// The Swift equivalent type for Kotlin bridged types (e.g. KotlinDouble → Double).
+    var swiftType: String? {
+      Self.kotlinToSwiftTypeMap[baseType]
+    }
+
+    var isKotlinBridgedType: Bool {
+      swiftType != nil
+    }
   }
 
   public static func expansion(
@@ -52,16 +75,29 @@ public struct KMPStateSupportMacro: DeclarationMacro {
 
     let typeName = base.trimmedDescription
 
-    // Remaining arguments are property tuples: ("name", String.self)
-    let propertyArgs = arguments.dropFirst()
+    // Check for trailing `public:` argument
+    let remainingArgs = arguments.dropFirst()
+    let isPublic: Bool
+    let propertyArgs: [LabeledExprSyntax]
+    if let lastArg = remainingArgs.last,
+       lastArg.label?.text == "internalAccessor",
+       let boolLiteral = lastArg.expression.as(BooleanLiteralExprSyntax.self) {
+      isPublic = boolLiteral.literal.text != "true"
+      propertyArgs = Array(remainingArgs.dropLast())
+    } else {
+      isPublic = true
+      propertyArgs = Array(remainingArgs)
+    }
+
     guard !propertyArgs.isEmpty else {
       throw Error.noProperties
     }
 
     let properties = try parseProperties(from: propertyArgs, rootType: typeName)
+    let accessModifier = isPublic ? "public " : ""
 
-    let withFunc = generateWithFunction(properties: properties)
-    let applyFunc = generateApplyFunction(typeName: typeName, properties: properties)
+    let withFunc = generateWithFunction(properties: properties, accessModifier: accessModifier)
+    let applyFunc = generateApplyFunction(typeName: typeName, properties: properties, accessModifier: accessModifier)
 
     return [DeclSyntax(stringLiteral: withFunc), DeclSyntax(stringLiteral: applyFunc)]
   }
@@ -106,39 +142,68 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     }
   }
 
-  private static func generateWithFunction(properties: [Property]) -> String {
+  private static func generateWithFunction(properties: [Property], accessModifier: String) -> String {
     let params = properties.map { prop in
-      if prop.isOptional {
-        "\(prop.name): (() -> \(prop.type))? = nil"
+      let paramType = prop.swiftType ?? prop.baseType
+      return if prop.isOptional {
+        "\(prop.name): (() -> \(paramType)?)? = nil"
       } else {
-        "\(prop.name): \(prop.type)? = nil"
+        "\(prop.name): \(paramType)? = nil"
       }
     }.joined(separator: ", ")
+
+    let localVars = properties.compactMap { prop -> String? in
+      guard prop.isKotlinBridgedType, prop.isOptional else { return nil }
+      let cap = capitalizeFirst(prop.name)
+      return "let new\(cap) = if \(prop.name) != nil { \(prop.name)?().flatMap(\(prop.baseType).init) } else { self.\(prop.name) }"
+    }
 
     let bodyArgs = properties.map { prop in
-      if prop.isOptional {
-        "\(prop.name): \(prop.name) != nil ? \(prop.name)!() : self.\(prop.name)"
+      if prop.isKotlinBridgedType {
+        if prop.isOptional {
+          let cap = capitalizeFirst(prop.name)
+          return "\(prop.name): new\(cap)"
+        } else {
+          return "\(prop.name): \(prop.name) ?? self.\(prop.name)"
+        }
+      } else if prop.isOptional {
+        return "\(prop.name): \(prop.name) != nil ? \(prop.name)!() : self.\(prop.name)"
       } else {
-        "\(prop.name): \(prop.name) ?? self.\(prop.name)"
+        return "\(prop.name): \(prop.name) ?? self.\(prop.name)"
       }
     }.joined(separator: ", ")
 
-    return """
-      func with(\(params)) -> Self {
-        Self(\(bodyArgs))
-      }
-      """
+    if localVars.isEmpty {
+      return """
+        \(accessModifier)func withChanges(\(params)) -> Self {
+          Self(\(bodyArgs))
+        }
+        """
+    } else {
+      let localVarsStr = localVars.joined(separator: "\n  ")
+      return """
+        \(accessModifier)func withChanges(\(params)) -> Self {
+          \(localVarsStr)
+          return Self(\(bodyArgs))
+        }
+        """
+    }
   }
 
-  private static func generateApplyFunction(typeName: String, properties: [Property]) -> String {
+  private static func capitalizeFirst(_ s: String) -> String {
+    s.prefix(1).uppercased() + s.dropFirst()
+  }
+
+  private static func generateApplyFunction(typeName: String, properties: [Property], accessModifier: String) -> String {
     var caseLines: [String] = []
 
     for prop in properties {
       caseLines.append("    case \\KTStateWrapper<State>.kt.\(prop.name):")
+      let castType = prop.swiftType ?? prop.baseType
       if prop.isOptional {
-        caseLines.append("      with(\(prop.name): { value as? \(prop.baseType) })")
+        caseLines.append("      withChanges(\(prop.name): { value as? \(castType) })")
       } else {
-        caseLines.append("      with(\(prop.name): value as? \(prop.type))")
+        caseLines.append("      withChanges(\(prop.name): value as? \(castType))")
       }
     }
 
@@ -146,7 +211,7 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     let fatalLine = #"fatalError("Unknown key path \(path)")"#
 
     return """
-      func apply(path: AnyKeyPath, value: Any) -> Self {
+      \(accessModifier)func apply(path: AnyKeyPath, value: Any) -> Self {
         typealias State = \(typeName)
 
         return switch path {
