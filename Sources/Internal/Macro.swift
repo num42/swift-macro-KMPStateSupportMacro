@@ -162,14 +162,14 @@ public struct KMPStateSupportMacro: DeclarationMacro {
 
     if localVars.isEmpty {
       return """
-        func withChanges(\(params)) -> Self {
+        public func withChanges(\(params)) -> Self {
           Self(\(bodyArgs))
         }
         """
     } else {
       let localVarsStr = localVars.joined(separator: "\n  ")
       return """
-        func withChanges(\(params)) -> Self {
+        public func withChanges(\(params)) -> Self {
           \(localVarsStr)
           return Self(\(bodyArgs))
         }
@@ -198,7 +198,7 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     let fatalLine = #"fatalError("Unknown key path \(path)")"#
 
     return """
-      func apply(path: AnyKeyPath, value: Any) -> Self {
+      public func apply(path: AnyKeyPath, value: Any) -> Self {
         typealias State = \(typeName)
 
         return switch path {
