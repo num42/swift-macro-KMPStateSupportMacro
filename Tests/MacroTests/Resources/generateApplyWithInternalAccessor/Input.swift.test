@@ -1,0 +1,7 @@
+extension MyState {
+  #KMPStateSupport(MyState.self,
+    ("name", String.self),
+    ("count", Int.self),
+    internalAccessor: true
+  )
+}

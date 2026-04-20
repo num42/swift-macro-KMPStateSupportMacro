@@ -1,0 +1,17 @@
+extension MyState {
+  func withChanges(name: String? = nil, count: Int? = nil) -> Self {
+    Self(name: name ?? self.name, count: count ?? self.count)
+  }
+  func apply(path: AnyKeyPath, value: Any) -> Self {
+    typealias State = MyState
+
+    return switch path {
+      case \KTStateWrapper<State>.kt.name:
+        withChanges(name: value as? String)
+      case \KTStateWrapper<State>.kt.count:
+        withChanges(count: value as? Int)
+    default:
+      fatalError("Unknown key path \(path)")
+    }
+  }
+}

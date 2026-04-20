@@ -75,16 +75,29 @@ public struct KMPStateSupportMacro: DeclarationMacro {
 
     let typeName = base.trimmedDescription
 
-    // Remaining arguments are property tuples: ("name", String.self)
-    let propertyArgs = arguments.dropFirst()
+    // Check for trailing `public:` argument
+    let remainingArgs = arguments.dropFirst()
+    let isPublic: Bool
+    let propertyArgs: [LabeledExprSyntax]
+    if let lastArg = remainingArgs.last,
+       lastArg.label?.text == "internalAccessor",
+       let boolLiteral = lastArg.expression.as(BooleanLiteralExprSyntax.self) {
+      isPublic = boolLiteral.literal.text != "true"
+      propertyArgs = Array(remainingArgs.dropLast())
+    } else {
+      isPublic = true
+      propertyArgs = Array(remainingArgs)
+    }
+
     guard !propertyArgs.isEmpty else {
       throw Error.noProperties
     }
 
     let properties = try parseProperties(from: propertyArgs, rootType: typeName)
+    let accessModifier = isPublic ? "public " : ""
 
-    let withFunc = generateWithFunction(properties: properties)
-    let applyFunc = generateApplyFunction(typeName: typeName, properties: properties)
+    let withFunc = generateWithFunction(properties: properties, accessModifier: accessModifier)
+    let applyFunc = generateApplyFunction(typeName: typeName, properties: properties, accessModifier: accessModifier)
 
     return [DeclSyntax(stringLiteral: withFunc), DeclSyntax(stringLiteral: applyFunc)]
   }
@@ -129,7 +142,7 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     }
   }
 
-  private static func generateWithFunction(properties: [Property]) -> String {
+  private static func generateWithFunction(properties: [Property], accessModifier: String) -> String {
     let params = properties.map { prop in
       let paramType = prop.swiftType ?? prop.baseType
       return if prop.isOptional {
@@ -162,14 +175,14 @@ public struct KMPStateSupportMacro: DeclarationMacro {
 
     if localVars.isEmpty {
       return """
-        public func withChanges(\(params)) -> Self {
+        \(accessModifier)func withChanges(\(params)) -> Self {
           Self(\(bodyArgs))
         }
         """
     } else {
       let localVarsStr = localVars.joined(separator: "\n  ")
       return """
-        public func withChanges(\(params)) -> Self {
+        \(accessModifier)func withChanges(\(params)) -> Self {
           \(localVarsStr)
           return Self(\(bodyArgs))
         }
@@ -181,7 +194,7 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     s.prefix(1).uppercased() + s.dropFirst()
   }
 
-  private static func generateApplyFunction(typeName: String, properties: [Property]) -> String {
+  private static func generateApplyFunction(typeName: String, properties: [Property], accessModifier: String) -> String {
     var caseLines: [String] = []
 
     for prop in properties {
@@ -198,7 +211,7 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     let fatalLine = #"fatalError("Unknown key path \(path)")"#
 
     return """
-      public func apply(path: AnyKeyPath, value: Any) -> Self {
+      \(accessModifier)func apply(path: AnyKeyPath, value: Any) -> Self {
         typealias State = \(typeName)
 
         return switch path {

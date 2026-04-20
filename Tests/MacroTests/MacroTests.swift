@@ -27,5 +27,9 @@ internal import Testing
     @Test func generateApplyWithNonOptionalKotlinBridgedType() {
       MacroTester.testMacro(macros: testMacros)
     }
+
+    @Test func generateApplyWithInternalAccessor() {
+      MacroTester.testMacro(macros: testMacros)
+    }
   }
 #endif
