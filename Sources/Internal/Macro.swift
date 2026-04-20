@@ -151,7 +151,7 @@ public struct KMPStateSupportMacro: DeclarationMacro {
           let cap = capitalizeFirst(prop.name)
           return "\(prop.name): new\(cap)"
         } else {
-          return "\(prop.name): \(prop.name).map(\(prop.type).init) ?? self.\(prop.name)"
+          return "\(prop.name): \(prop.name) ?? self.\(prop.name)"
         }
       } else if prop.isOptional {
         return "\(prop.name): \(prop.name) != nil ? \(prop.name)!() : self.\(prop.name)"
