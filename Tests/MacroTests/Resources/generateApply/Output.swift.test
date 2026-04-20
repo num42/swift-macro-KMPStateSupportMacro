@@ -1,5 +1,5 @@
 extension MyState {
-  func with(name: String? = nil, count: Int? = nil) -> Self {
+  func withChanges(name: String? = nil, count: Int? = nil) -> Self {
     Self(name: name ?? self.name, count: count ?? self.count)
   }
   func apply(path: AnyKeyPath, value: Any) -> Self {
@@ -7,9 +7,9 @@ extension MyState {
 
     return switch path {
       case \KTStateWrapper<State>.kt.name:
-        with(name: value as? String)
+        withChanges(name: value as? String)
       case \KTStateWrapper<State>.kt.count:
-        with(count: value as? Int)
+        withChanges(count: value as? Int)
     default:
       fatalError("Unknown key path \(path)")
     }

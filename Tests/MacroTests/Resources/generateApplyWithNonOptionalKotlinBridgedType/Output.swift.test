@@ -1,5 +1,5 @@
 extension MyState {
-  func with(name: String? = nil, amount: Double? = nil, ratio: (() -> Double?)? = nil) -> Self {
+  func withChanges(name: String? = nil, amount: Double? = nil, ratio: (() -> Double?)? = nil) -> Self {
     let newRatio = if ratio != nil {
         ratio?().flatMap(KotlinDouble.init)
     } else {
@@ -12,11 +12,11 @@ extension MyState {
 
     return switch path {
       case \KTStateWrapper<State>.kt.name:
-        with(name: value as? String)
+        withChanges(name: value as? String)
       case \KTStateWrapper<State>.kt.amount:
-        with(amount: value as? Double)
+        withChanges(amount: value as? Double)
       case \KTStateWrapper<State>.kt.ratio:
-        with(ratio: {
+        withChanges(ratio: {
                 value as? Double
             })
     default:

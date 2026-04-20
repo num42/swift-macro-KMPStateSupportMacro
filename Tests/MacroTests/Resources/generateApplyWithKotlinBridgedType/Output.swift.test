@@ -1,5 +1,5 @@
 extension MyState {
-  func with(name: String? = nil, value: (() -> Double?)? = nil) -> Self {
+  func withChanges(name: String? = nil, value: (() -> Double?)? = nil) -> Self {
     let newValue = if value != nil {
         value?().flatMap(KotlinDouble.init)
     } else {
@@ -12,9 +12,9 @@ extension MyState {
 
     return switch path {
       case \KTStateWrapper<State>.kt.name:
-        with(name: value as? String)
+        withChanges(name: value as? String)
       case \KTStateWrapper<State>.kt.value:
-        with(value: {
+        withChanges(value: {
                 value as? Double
             })
     default:

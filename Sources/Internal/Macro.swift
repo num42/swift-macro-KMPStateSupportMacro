@@ -162,14 +162,14 @@ public struct KMPStateSupportMacro: DeclarationMacro {
 
     if localVars.isEmpty {
       return """
-        func with(\(params)) -> Self {
+        func withChanges(\(params)) -> Self {
           Self(\(bodyArgs))
         }
         """
     } else {
       let localVarsStr = localVars.joined(separator: "\n  ")
       return """
-        func with(\(params)) -> Self {
+        func withChanges(\(params)) -> Self {
           \(localVarsStr)
           return Self(\(bodyArgs))
         }
@@ -188,9 +188,9 @@ public struct KMPStateSupportMacro: DeclarationMacro {
       caseLines.append("    case \\KTStateWrapper<State>.kt.\(prop.name):")
       let castType = prop.swiftType ?? prop.baseType
       if prop.isOptional {
-        caseLines.append("      with(\(prop.name): { value as? \(castType) })")
+        caseLines.append("      withChanges(\(prop.name): { value as? \(castType) })")
       } else {
-        caseLines.append("      with(\(prop.name): value as? \(castType))")
+        caseLines.append("      withChanges(\(prop.name): value as? \(castType))")
       }
     }
 
