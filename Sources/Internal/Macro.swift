@@ -80,8 +80,9 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     let isPublic: Bool
     let propertyArgs: [LabeledExprSyntax]
     if let lastArg = remainingArgs.last,
-       lastArg.label?.text == "internalAccessor",
-       let boolLiteral = lastArg.expression.as(BooleanLiteralExprSyntax.self) {
+      lastArg.label?.text == "internalAccessor",
+      let boolLiteral = lastArg.expression.as(BooleanLiteralExprSyntax.self)
+    {
       isPublic = boolLiteral.literal.text != "true"
       propertyArgs = Array(remainingArgs.dropLast())
     } else {
@@ -97,7 +98,8 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     let accessModifier = isPublic ? "public " : ""
 
     let withFunc = generateWithFunction(properties: properties, accessModifier: accessModifier)
-    let applyFunc = generateApplyFunction(typeName: typeName, properties: properties, accessModifier: accessModifier)
+    let applyFunc = generateApplyFunction(
+      typeName: typeName, properties: properties, accessModifier: accessModifier)
 
     return [DeclSyntax(stringLiteral: withFunc), DeclSyntax(stringLiteral: applyFunc)]
   }
@@ -142,7 +144,8 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     }
   }
 
-  private static func generateWithFunction(properties: [Property], accessModifier: String) -> String {
+  private static func generateWithFunction(properties: [Property], accessModifier: String) -> String
+  {
     let params = properties.map { prop in
       let paramType = prop.swiftType ?? prop.baseType
       return if prop.isOptional {
@@ -155,7 +158,8 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     let localVars = properties.compactMap { prop -> String? in
       guard prop.isKotlinBridgedType, prop.isOptional else { return nil }
       let cap = capitalizeFirst(prop.name)
-      return "let new\(cap) = if \(prop.name) != nil { \(prop.name)?().flatMap(\(prop.baseType).init) } else { self.\(prop.name) }"
+      return
+        "let new\(cap) = if \(prop.name) != nil { \(prop.name)?().flatMap(\(prop.baseType).init) } else { self.\(prop.name) }"
     }
 
     let bodyArgs = properties.map { prop in
@@ -194,7 +198,9 @@ public struct KMPStateSupportMacro: DeclarationMacro {
     s.prefix(1).uppercased() + s.dropFirst()
   }
 
-  private static func generateApplyFunction(typeName: String, properties: [Property], accessModifier: String) -> String {
+  private static func generateApplyFunction(
+    typeName: String, properties: [Property], accessModifier: String
+  ) -> String {
     var caseLines: [String] = []
 
     for prop in properties {
