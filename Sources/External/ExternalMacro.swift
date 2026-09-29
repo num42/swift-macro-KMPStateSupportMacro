@@ -1,4 +1,4 @@
-@freestanding(declaration, names: arbitrary)
+@freestanding(declaration, names: named(withChanges), named(apply))
 public macro KMPStateSupport(
   _ type: Any.Type, _ properties: (String, Any.Type)..., internalAccessor: Bool = false
 ) =
